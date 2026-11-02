@@ -81,8 +81,8 @@ def _upscale(image: Image.Image, model: str, scale: int) -> bytes:
         try:
             result = subprocess.run(
                 [str(UPSCALE_BIN), "-i", str(source), "-o", str(target), "-m", str(MODEL_DIR),
-                 "-n", model, "-s", str(scale), "-t", "128"],
-                capture_output=True, text=True, timeout=240, check=False,
+                 "-n", model, "-s", str(scale), "-t", "256"],
+                capture_output=True, text=True, timeout=540, check=False,
                 env={**os.environ, "VK_ICD_FILENAMES": os.getenv(
                     "VK_ICD_FILENAMES", "/usr/share/vulkan/icd.d/lvp_icd.x86_64.json")},
             )
