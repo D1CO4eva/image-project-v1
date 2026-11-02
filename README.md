@@ -10,7 +10,7 @@ EtchLab is a browser-based image workbench for preparing artwork for laser workf
 - **Edit:** Crop by pixel coordinates, rotate, resize, adjust brightness and contrast, or convert to grayscale.
 - **Laser prep:** Fixed threshold or Floyd–Steinberg dithering with optional inversion.
 
-The app accepts PNG, JPEG, WebP, BMP, and TIFF files up to 24 MB. Images are limited to 6 megapixels; AI upscaling accepts up to 2 megapixels per source image. These limits protect the Cloud Run instance from oversized jobs. Threshold, dither, and background-removal output should be previewed in the user's laser software before production.
+The app accepts PNG, JPEG, WebP, BMP, and TIFF files up to 24 MB and 12 megapixels. AI upscaling is limited to 48 megapixels of output; the browser selects the largest scale that fits that limit for each uploaded image. Threshold, dither, and background-removal output should be previewed in the user's laser software before production.
 
 ## Run locally with Docker
 
