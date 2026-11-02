@@ -27,7 +27,7 @@ The original Windows command-line wrapper remains available in `upscale.py`; see
 
 ## Google Cloud deployment
 
-Cloud Build uses `cloudbuild.yaml` to build a Linux container, push the commit-tagged image to Artifact Registry, and deploy the Cloud Run service. The intended trigger watches pushes to `main`, so merging a pull request to `main` publishes that revision.
+Cloud Build uses `cloudbuild.yaml` to build a Linux container, run an HTTP smoke check across all five image operations, push the commit-tagged image to Artifact Registry, and deploy the Cloud Run service. The intended trigger watches pushes to `main`, so merging a pull request to `main` publishes that revision.
 
 Defaults in the build config:
 
