@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171b19">
+  <title>EtchLab — prepare an image for the machine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="EtchLab home"><span class="brand-mark">E</span><span>ETCH<span class="brand-light">LAB</span></span></a>
+    <div class="top-note"><span class="live-dot"></span> IMAGE WORKBENCH <span class="mono">/ 01</span></div>
+    <a class="top-link" href="https://github.com/D1CO4eva/image-project-v1" target="_blank" rel="noreferrer">PROJECT <span>↗</span></a>
+  </header>
+  <main class="layout">
+    <aside class="intro">
+      <p class="eyebrow">FROM IMAGE TO ENGRAVE-READY</p>
+      <h1>Make the image<br><em>machine-ready.</em></h1>
+      <p class="intro-copy">One workbench for cleanup, sizing, tiling, and laser prep. Your original stays untouched.</p>
+      <div class="steps"><span class="step-active">01 <b>LOAD</b></span><i></i><span>02 <b>ADJUST</b></span><i></i><span>03 <b>EXPORT</b></span></div>
+      <div class="fine-note"><span class="note-icon">↳</span><span>Files are processed in temporary memory and are not saved as a project.</span></div>
+    </aside>
+    <section class="workbench" aria-label="Image editor">
+      <div class="tool-rail" role="tablist" aria-label="Image tools">
+        <button class="tool active" data-tool="upscale" role="tab" aria-selected="true"><span class="tool-icon">↗</span><span>Upscale</span></button>
+        <button class="tool" data-tool="remove-background" role="tab" aria-selected="false"><span class="tool-icon">◌</span><span>Cut out</span></button>
+        <button class="tool" data-tool="split" role="tab" aria-selected="false"><span class="tool-icon">▦</span><span>Tile</span></button>
+        <button class="tool" data-tool="edit" role="tab" aria-selected="false"><span class="tool-icon">⌁</span><span>Edit</span></button>
+        <button class="tool" data-tool="laser" role="tab" aria-selected="false"><span class="tool-icon">◧</span><span>Laser prep</span></button>
+      </div>
+      <div class="work-area">
+        <label class="dropzone" id="dropzone" for="file-input">
+          <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/tiff">
+          <div class="drop-content" id="drop-content">
+            <span class="upload-glyph">↑</span>
+            <span class="drop-title">Drop an image to begin</span>
+            <span class="drop-sub">or <u>browse files</u> · PNG, JPG, WebP, TIFF · up to 24 MB</span>
+          </div>
+          <img id="preview" alt="Selected image preview" hidden>
+          <span class="image-meta" id="image-meta" hidden></span>
+          <button class="view-toggle" id="view-toggle" type="button" hidden>VIEW ORIGINAL</button>
+        </label>
+        <div class="settings">
+          <div class="settings-heading"><span id="tool-title">AI UPSCALE</span><span class="mono" id="tool-index">01 / 05</span></div>
+          <div id="settings-body"></div>
+          <div class="action-row"><div class="status" id="status" aria-live="polite">Select an image to begin</div><button id="process" class="primary" disabled>PROCESS IMAGE <span>↗</span></button></div>
+        </div>
+      </div>
+      <footer class="bench-footer"><span><b>ETCHLAB</b> BROWSER WORKBENCH</span><span>PNG EXPORT <i>·</i> LOCAL PROCESSING PIPELINE</span></footer>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
