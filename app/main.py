@@ -19,7 +19,8 @@ STATIC = Path(__file__).resolve().parent / "static"
 UPSCALE_BIN = Path(os.getenv("REALESRGAN_BIN", "/opt/realesrgan/realesrgan-ncnn-vulkan"))
 MODEL_DIR = Path(os.getenv("REALESRGAN_MODELS", str(ROOT / "models")))
 MAX_UPLOAD_BYTES = 24 * 1024 * 1024
-MAX_PIXELS = 6_000_000
+MAX_PIXELS = 12_000_000
+MAX_UPSCALE_OUTPUT_PIXELS = 48_000_000
 ALLOWED_MODELS = {"realesrgan-x4plus", "realesrgan-x4plus-anime", "realesr-animevideov3"}
 
 app = FastAPI(title="EtchLab", docs_url=None, redoc_url=None)
@@ -39,7 +40,7 @@ def _image(data: bytes) -> Image.Image:
         if image.format not in {"PNG", "JPEG", "WEBP", "BMP", "TIFF"}:
             raise HTTPException(415, "Use a PNG, JPEG, WebP, BMP, or TIFF image.")
         if image.width * image.height > MAX_PIXELS:
-            raise HTTPException(413, "This image is too large. The limit is 6 megapixels.")
+            raise HTTPException(413, "This image is too large. The limit is 12 megapixels.")
         image.load()
         return ImageOps.exif_transpose(image)
     except HTTPException:
@@ -126,8 +127,14 @@ def process_image(
     if operation == "upscale":
         if model not in ALLOWED_MODELS or scale not in (2, 3, 4):
             raise HTTPException(400, "Choose a supported model and scale.")
-        if image.width * image.height > 2_000_000:
-            raise HTTPException(413, "AI upscaling is limited to 2 megapixels per source image.")
+        output_pixels = image.width * image.height * scale * scale
+        if output_pixels > MAX_UPSCALE_OUTPUT_PIXELS:
+            max_scale = int((MAX_UPSCALE_OUTPUT_PIXELS / (image.width * image.height)) ** 0.5)
+            raise HTTPException(
+                413,
+                f"At {scale}× this image would exceed the 48 megapixel output limit. "
+                f"Choose {max_scale}× or lower, or use a smaller image.",
+            )
         return _attachment(_upscale(image, model, scale), f"{stem}_{scale}x.png")
 
     if operation == "remove-background":
