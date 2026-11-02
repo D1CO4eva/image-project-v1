@@ -1,0 +1,8 @@
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+*.exe
+*.dll
+*.zip
+README_windows.md
