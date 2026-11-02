@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import base64
 import io
+import json
 import os
 import re
 import subprocess
 import tempfile
+import urllib.error
+import urllib.request
 import zipfile
+from collections import deque
 from pathlib import Path
 from threading import Lock
+from time import monotonic
+from urllib.parse import quote
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -27,6 +34,11 @@ app = FastAPI(title="EtchLab", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 _rembg_session = None
 _rembg_lock = Lock()
+_ai_limit_lock = Lock()
+_ai_requests: deque[float] = deque()
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+AI_REQUESTS_PER_HOUR = 5
+AI_REQUEST_WINDOW_SECONDS = 3600
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -69,6 +81,104 @@ def _attachment(payload: bytes, name: str, content_type: str = "image/png") -> R
         media_type=content_type,
         headers={"Content-Disposition": f'attachment; filename="{safe_name}"', "Cache-Control": "no-store"},
     )
+
+
+def _deepseek_plan(image: Image.Image, instruction: str) -> dict:
+    api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(503, "AI Edit is not configured on this deployment.")
+    instruction = instruction.strip()
+    if not instruction or len(instruction) > 500:
+        raise HTTPException(400, "Describe the change in 1 to 500 characters.")
+
+    # Send only a downsized visual analysis copy. Apply the returned plan to the
+    # full-resolution image held by this request; no upload is persisted.
+    preview = image.copy()
+    preview.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
+    preview_payload = _encoded(preview.convert("RGB"), "JPEG", 82)
+    image_url = "data:image/jpeg;base64," + base64.b64encode(preview_payload).decode("ascii")
+    prompt = (
+        "You are an image-editing assistant for laser artwork. Analyze the supplied image and the user's request. "
+        "Return only a JSON object with keys summary, brightness, contrast, saturation, sharpness, grayscale. "
+        "summary is a short plain-language description. The four numeric values are multipliers in [0.75,1.25]; "
+        "use 1.0 for unchanged. grayscale is boolean. Choose conservative global tonal adjustments that best "
+        "serve the requested result. Do not claim to crop, remove objects/backgrounds, replace content, draw, "
+        "or upscale; those operations are unavailable here. If the request cannot be achieved with these controls, "
+        "explain that in summary and return neutral values. User request: " + instruction
+    )
+    body = json.dumps({
+        "model": "deepseek-flash",
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": image_url}},
+        ]}],
+        "response_format": {"type": "json_object"},
+        "max_tokens": 300,
+        "temperature": 0.1,
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        DEEPSEEK_URL, data=body,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=45) as response:
+            raw = json.loads(response.read(64 * 1024))
+        plan = json.loads(raw["choices"][0]["message"]["content"])
+    except urllib.error.HTTPError as exc:
+        # Never relay provider body; it may contain sensitive diagnostics.
+        if exc.code in (401, 403):
+            raise HTTPException(503, "DeepSeek rejected the configured API key.") from exc
+        raise HTTPException(502, "DeepSeek could not analyze this image. Please retry.") from exc
+    except (urllib.error.URLError, TimeoutError, KeyError, IndexError, TypeError, ValueError) as exc:
+        raise HTTPException(502, "DeepSeek could not analyze this image. Please retry.") from exc
+
+    if not isinstance(plan, dict):
+        raise HTTPException(502, "DeepSeek returned an unusable edit plan. Please retry.")
+    summary = plan.get("summary")
+    if not isinstance(summary, str):
+        raise HTTPException(502, "DeepSeek returned an unusable edit plan. Please retry.")
+    safe_plan = {"summary": summary[:240], "grayscale": plan.get("grayscale") is True}
+    for key in ("brightness", "contrast", "saturation", "sharpness"):
+        value = plan.get(key, 1.0)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.75 <= value <= 1.25:
+            raise HTTPException(502, "DeepSeek returned an unsafe edit plan. Please retry.")
+        safe_plan[key] = float(value)
+    return safe_plan
+
+
+def _check_ai_rate_limit() -> None:
+    now = monotonic()
+    with _ai_limit_lock:
+        while _ai_requests and now - _ai_requests[0] >= AI_REQUEST_WINDOW_SECONDS:
+            _ai_requests.popleft()
+        if len(_ai_requests) >= AI_REQUESTS_PER_HOUR:
+            raise HTTPException(429, "AI Edit is limited to 5 requests per hour per running instance.")
+        _ai_requests.append(now)
+
+
+@app.post("/api/ai-edit")
+def ai_edit(file: UploadFile = File(...), instruction: str = Form(...)) -> Response:
+    # Keep the public API-key-backed endpoint bounded. The limit is per instance;
+    # Cloud Run currently runs at most two instances.
+    _check_ai_rate_limit()
+    data = file.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "The upload limit is 24 MB.")
+    if not data:
+        raise HTTPException(400, "Choose an image first.")
+    image = _image(data)
+    plan = _deepseek_plan(image, instruction)
+    enhancers = {"brightness": "Brightness", "contrast": "Contrast", "saturation": "Color", "sharpness": "Sharpness"}
+    for key, enhancer_name in enhancers.items():
+        if plan[key] != 1.0:
+            image = ImageEnhance.__dict__[enhancer_name](image).enhance(plan[key])
+    if plan["grayscale"]:
+        image = ImageOps.grayscale(image)
+    response = _attachment(_encoded(image), f"{Path(file.filename or 'image').stem[:80]}_ai_edit.png")
+    response.headers["X-EtchLab-AI-Summary"] = quote(plan["summary"][:240])
+    response.headers["Access-Control-Expose-Headers"] = "X-EtchLab-AI-Summary"
+    return response
 
 
 def _upscale(image: Image.Image, model: str, scale: int) -> bytes:

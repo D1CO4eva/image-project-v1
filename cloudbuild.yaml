@@ -44,6 +44,7 @@ steps:
       - --min=0
       - --max=2
       - --service-account=${_RUNTIME_SERVICE_ACCOUNT}@$PROJECT_ID.iam.gserviceaccount.com
+      - --set-secrets=DEEPSEEK_API_KEY=deepseek-api-key:latest
       - --allow-unauthenticated
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
