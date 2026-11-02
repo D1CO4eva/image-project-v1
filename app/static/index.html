@@ -47,7 +47,14 @@
         <div class="settings">
           <div class="settings-heading"><span id="tool-title">AI UPSCALE</span><span class="mono" id="tool-index">01 / 06</span></div>
           <div id="settings-body"></div>
-          <div class="action-row"><div class="status" id="status" aria-live="polite">Select an image to begin</div><button id="process" class="primary" disabled>PROCESS IMAGE <span>↗</span></button></div>
+          <div class="action-row">
+            <div class="status" id="status" aria-live="polite">Select an image to begin</div>
+            <div class="progress-indicator" id="progress-indicator" role="progressbar" aria-label="Image processing progress" aria-valuetext="Preparing" hidden>
+              <div class="progress-copy"><span id="progress-message">Preparing image…</span><span id="progress-time" aria-hidden="true">00:00</span></div>
+              <div class="progress-track" aria-hidden="true"><span></span></div>
+            </div>
+            <button id="process" class="primary" disabled>PROCESS IMAGE <span>↗</span></button>
+          </div>
         </div>
       </div>
       <footer class="bench-footer"><span><b>ETCHLAB</b> BROWSER WORKBENCH</span><span>PNG EXPORT <i>·</i> LOCAL PROCESSING PIPELINE</span></footer>
