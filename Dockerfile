@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl unzip libvulkan1 mesa-vulkan-drivers \
+      ca-certificates curl unzip libvulkan1 libgomp1 mesa-vulkan-drivers \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/realesrgan /opt/rembg
 
